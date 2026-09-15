@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+<title>핵심보전종을 구하라! — WWF 터치 캠페인 (단일 진행)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#07130F;
+    --bg-1:#0E241B;
+    --panel:#123328;
+    --line: rgba(244,241,234,0.12);
+    --ink:#F4F1EA;
+    --ink-dim:#9FBBA9;
+    --alert:#FF6B4A;
+    --alert-dim: rgba(255,107,74,0.35);
+    --safe:#3FD68A;
+    --safe-dim: rgba(63,214,138,0.35);
+    --amber:#F4B740;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg-0);
+    color:var(--ink);
+    font-family:'Noto Sans KR', sans-serif;
+    overflow:hidden;
+    touch-action:manipulation;
+  }
+  .mono{ font-family:'Space Mono', monospace; }
+
+  #app{
+    position:relative;
+    width:100vw; height:100dvh;
+    background:
+      radial-gradient(circle at 18% 8%, rgba(63,214,138,0.10), transparent 45%),
+      radial-gradient(circle at 82% 92%, rgba(255,107,74,0.10), transparent 45%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+    overflow:hidden;
+  }
+
+  /* faint data-dot texture, ties to "생명을 데이터로 본다" motif */
+  #app::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image: radial-gradient(rgba(244,241,234,0.06) 1px, transparent 1px);
+    background-size: 26px 26px;
+    pointer-events:none;
+  }
+
+  .screen{
+    position:absolute; top:0; left:0; right:0; bottom:26px;
+    display:none;
+    flex-direction:column;
+    padding: clamp(18px, 4vw, 40px);
+  }
+  .screen.active{ display:flex; }
+
+  /* ---------- shared eyebrow ---------- */
+  .eyebrow{
+    font-size: clamp(11px, 1.6vw, 13px);
+    color: var(--ink-dim);
+    letter-spacing:0.02em;
+    margin-bottom: 6px;
+  }
+  .eyebrow b{ color:var(--safe); font-weight:700; }
+
+  /* ---------- INTRO ---------- */
+  #intro{ align-items:center; justify-content:center; text-align:center; gap: clamp(14px,2.4vh,22px); }
+  #intro .badge{
+    display:inline-flex; align-items:center; gap:8px;
+    border:1px solid var(--line); border-radius:999px;
+    padding:7px 16px; font-size:12px; color:var(--ink-dim);
+  }
+  #intro .badge b{ color:var(--ink); font-weight:700; }
+  #intro h1{
+    font-size: clamp(28px, 6.2vw, 56px);
+    line-height:1.22;
+    font-weight:900;
+    margin:0;
+    max-width: 18ch;
+  }
+  #intro h1 .hl{ color:var(--alert); }
+  #intro p.desc{
+    font-size: clamp(14px, 2vw, 17px);
+    color: var(--ink-dim);
+    max-width: 44ch;
+    line-height:1.6;
+    margin:0;
+  }
+  .rules{
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
+    max-width: 560px;
+  }
+  .rules div{
+    display:flex; align-items:center; gap:8px;
+    background: rgba(244,241,234,0.05);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 14px;
+    font-size: clamp(12px, 1.8vw, 14px);
+    color: var(--ink);
+  }
+  .rules span.n{
+    width:20px;height:20px;border-radius:50%;
+    background:var(--safe); color:#06231A;
+    font-family:'Space Mono',monospace; font-weight:700; font-size:11px;
+    display:flex;align-items:center;justify-content:center;flex:none;
+  }
+
+  .species-legend{
+    display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+  }
+  .species-legend .card{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    width: 92px;
+    padding:14px 8px;
+    border-radius:16px;
+    background: rgba(63,214,138,0.08);
+    border:1px solid var(--safe-dim);
+  }
+  .species-legend .card .ico{ font-size:30px; }
+  .species-legend .card .nm{ font-size:12px; font-weight:700; color:var(--ink); }
+  .species-legend .card .tag{ font-size:10px; color:var(--ink-dim); }
+
+  .btn{
+    appearance:none; border:none; cursor:pointer;
+    font-family:'Noto Sans KR',sans-serif; font-weight:700;
+    border-radius: 999px;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn:active{ transform: scale(0.96); }
+  .btn-primary{
+    background: var(--alert);
+    color:#1A0805;
+    font-size: clamp(16px, 2.4vw, 19px);
+    padding: 16px 40px;
+    box-shadow: 0 10px 30px -8px rgba(255,107,74,0.55);
+  }
+  .btn-ghost{
+    background: transparent;
+    border:1px solid var(--line);
+    color: var(--ink);
+    font-size: clamp(13px, 1.8vw, 15px);
+    padding: 13px 28px;
+  }
+
+  /* ---------- PLAY ---------- */
+  #play{ padding: clamp(14px,3vw,28px); }
+  .hud{
+    display:flex; align-items:center; gap: clamp(10px,2vw,18px);
+    flex:none;
+  }
+  .timebar-wrap{
+    flex:1;
+    height: 10px;
+    border-radius:999px;
+    background: rgba(244,241,234,0.08);
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .timebar{
+    height:100%; width:100%;
+    background: linear-gradient(90deg, var(--safe), var(--amber) 60%, var(--alert));
+    transform-origin:left center;
+    transition: transform .1s linear;
+  }
+  .hud .clock{
+    font-size: clamp(18px,2.6vw,24px);
+    font-weight:700;
+    min-width: 2.4ch;
+    text-align:right;
+  }
+  .stats{
+    display:flex; gap: clamp(10px, 2vw, 16px);
+    margin-top: clamp(10px,2vh,16px);
+    flex:none;
+  }
+  .stat{
+    flex:1;
+    background: rgba(244,241,234,0.04);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding: 10px 14px;
+  }
+  .stat .k{ font-size:11px; color:var(--ink-dim); }
+  .stat .v{ font-size: clamp(20px,3vw,28px); font-weight:700; }
+  .stat.rescue .v{ color:var(--safe); }
+  .stat.miss .v{ color:var(--alert); }
+
+  .field{
+    position:relative;
+    flex:1;
+    margin-top: clamp(10px,2vh,16px);
+    border-radius:20px;
+    border:1px solid var(--line);
+    background: rgba(255,255,255,0.015);
+    overflow:hidden;
+  }
+
+  .target{
+    position:absolute;
+    width: var(--d); height: var(--d);
+    transform: translate(-50%,-50%) scale(0.6);
+    opacity:0;
+    display:flex; align-items:center; justify-content:center;
+    animation: pop .22s cubic-bezier(.2,1.4,.4,1) forwards;
+    cursor:pointer;
+  }
+  @keyframes pop{ to{ transform: translate(-50%,-50%) scale(1); opacity:1; } }
+  .target.leaving{
+    animation: leave .32s ease forwards;
+    pointer-events:none;
+  }
+  @keyframes leave{ to{ transform: translate(-50%,-50%) scale(0.5); opacity:0; } }
+  .target.missedleave{ filter: grayscale(1); }
+
+  .target svg{ position:absolute; inset:0; transform: rotate(-90deg); }
+  .target svg circle{ fill:none; stroke-width:6; }
+  .target svg circle.bg{ stroke: rgba(244,241,234,0.12); }
+  .target svg circle.ring{ stroke: var(--safe); stroke-linecap:round; }
+  .target.urgent svg circle.ring{ stroke: var(--alert); }
+
+  .target .face{
+    width:78%; height:78%;
+    border-radius:50%;
+    background: var(--panel);
+    display:flex; align-items:center; justify-content:center;
+    font-size: calc(var(--d) * 0.46);
+    box-shadow: inset 0 0 0 1px rgba(244,241,234,0.08);
+  }
+
+  .tray{
+    flex:none;
+    margin-top: clamp(10px,2vh,14px);
+    display:flex; align-items:center; gap:8px;
+    overflow:hidden;
+  }
+  .tray .label{ font-size:11px; color:var(--ink-dim); flex:none; margin-right:4px; }
+  .tray .icons{ display:flex; gap:6px; flex-wrap:wrap; }
+  .tray .icons span{
+    width:26px; height:26px; border-radius:50%;
+    background: rgba(63,214,138,0.14);
+    border:1px solid var(--safe-dim);
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px;
+  }
+
+  /* ---------- RESULT ---------- */
+  #result{ align-items:center; justify-content:center; text-align:center; gap:16px; }
+  #result .ring-big{
+    width: clamp(120px,20vw,160px); height: clamp(120px,20vw,160px);
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #result .ring-big svg{ position:absolute; inset:0; transform:rotate(-90deg); }
+  #result .ring-big circle{ fill:none; stroke-width:9; }
+  #result .ring-big circle.bg{ stroke:rgba(244,241,234,0.1); }
+  #result .ring-big circle.fg{ stroke:var(--safe); stroke-linecap:round; }
+  #result .ring-big .pct{ font-size: clamp(26px,4vw,34px); font-weight:900; }
+  #result h2{ font-size: clamp(22px,4vw,32px); margin:0; max-width:20ch; line-height:1.35; }
+  #result p{ color:var(--ink-dim); max-width:42ch; line-height:1.6; margin:0; font-size: clamp(13px,1.8vw,15px); }
+  #result .rowbtn{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+  #result .breakdown{
+    display:flex; gap:22px; margin-top:4px;
+  }
+  #result .breakdown div{ text-align:center; }
+  #result .breakdown .v{ font-size:20px; font-weight:700; }
+  #result .breakdown .k{ font-size:11px; color:var(--ink-dim); }
+
+  .footer-note{
+    position:absolute; bottom:0; left:0; right:0; height:26px;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center; font-size:10px; color: rgba(159,187,169,0.55);
+    background: var(--bg-0);
+    pointer-events:none;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .target, .target.leaving, .btn{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- INTRO -->
+  <div class="screen active" id="intro">
+    <div class="badge">🐾 <b>WWF</b> · 2026 지구생명보고서 핵심보전종 캠페인</div>
+    <h1>WWF가 지키는<br><span class="hl">핵심보전종</span>을<br>구하라!</h1>
+    <p class="desc">바다거북·두루미·수달, 세 생명은 지금 이 순간에도 서식지를 잃어가고 있습니다.<br>링이 사라지기 전에 터치해서 최대한 많이 구조하세요.</p>
+    <div class="species-legend">
+      <div class="card"><div class="ico">🐢</div><div class="nm">바다거북</div><div class="tag">해양쓰레기 위협</div></div>
+      <div class="card"><div class="ico">🦩</div><div class="nm">두루미</div><div class="tag">습지 감소</div></div>
+      <div class="card"><div class="ico">🦦</div><div class="nm">수달</div><div class="tag">하천 오염</div></div>
+    </div>
+    <div class="rules">
+      <div><span class="n">1</span>세 생명이 무작위 위치에 나타납니다</div>
+      <div><span class="n">2</span>주황 링이 다 사라지기 전에 터치</div>
+      <div><span class="n">3</span>제한시간 <b class="mono" style="color:var(--ink)">30초</b> 동안 최대한 많이 구조하세요</div>
+    </div>
+    <button class="btn btn-primary" id="startBtn">구조 시작하기</button>
+  </div>
+
+  <!-- PLAY -->
+  <div class="screen" id="play">
+    <div class="hud">
+      <div class="timebar-wrap"><div class="timebar" id="timebar"></div></div>
+      <div class="clock mono" id="clock">30</div>
+    </div>
+    <div class="stats">
+      <div class="stat rescue"><div class="k">구조한 생명</div><div class="v mono" id="rescueCount">0</div></div>
+      <div class="stat miss"><div class="k">놓친 생명</div><div class="v mono" id="missCount">0</div></div>
+    </div>
+    <div class="field" id="field"></div>
+    <div class="tray">
+      <div class="label">오늘 구조한 생명</div>
+      <div class="icons" id="trayIcons"></div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen" id="result">
+    <div class="ring-big">
+      <svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52"></circle><circle class="fg" id="resultRing" cx="60" cy="60" r="52"></circle></svg>
+      <div class="pct mono" id="resultPct">0%</div>
+    </div>
+    <h2 id="resultTitle">당신 덕분에 오늘, 생명이 살아남았습니다</h2>
+    <p id="resultDesc">2026 지구생명보고서는 지구의 생물다양성이 빠르게 줄어들고 있다고 말합니다. 오늘 당신이 지킨 손길이, 실제 멸종위기종을 지키는 힘이 될 수 있습니다.</p>
+    <div class="breakdown">
+      <div><div class="v mono" id="finalRescue" style="color:var(--safe)">0</div><div class="k">구조</div></div>
+      <div><div class="v mono" id="finalMiss" style="color:var(--alert)">0</div><div class="k">놓침</div></div>
+      <div><div class="v mono" id="finalTotal">0</div><div class="k">전체</div></div>
+    </div>
+    <div class="rowbtn">
+      <button class="btn btn-primary" id="donateBtn">오늘 지킨 생명, 후원으로 이어가기</button>
+      <button class="btn btn-ghost" id="retryBtn">다시 도전하기</button>
+    </div>
+  </div>
+
+  <div class="footer-note">단일 진행 버전 · 핵심보전종 3종 (바다거북·두루미·수달) · WWF × 국립과천과학관 프로토타입</div>
+</div>
+
+<script>
+(function(){
+  const SPECIES = ["🐢","🦩","🦦"]; // WWF 핵심보전종: 바다거북 · 두루미 · 수달
+  const GAME_SECONDS = 30;
+
+  // difficulty ramp: [start, end]
+  const SPAWN_INTERVAL = [950, 520];   // ms between spawns
+  const LIFESPAN       = [1500, 950];  // ms a target survives before it flees
+
+  const $ = (id) => document.getElementById(id);
+  const screens = { intro: $('intro'), play: $('play'), result: $('result') };
+  function showScreen(name){
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  }
+
+  let rescued = 0, missed = 0, spawned = 0;
+  let startTime = 0, spawnTimer = null, tickTimer = null, running = false;
+  let activeTargets = []; // {x,y,r}
+
+  const field = $('field');
+  const trayIcons = $('trayIcons');
+
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function fieldSize(){
+    const rect = field.getBoundingClientRect();
+    return { w: rect.width, h: rect.height };
+  }
+
+  function pickPosition(d){
+    const { w, h } = fieldSize();
+    const r = d/2 + 6;
+    for(let attempt=0; attempt<12; attempt++){
+      const x = lerp(r, w-r, Math.random());
+      const y = lerp(r, h-r, Math.random());
+      const ok = activeTargets.every(t => {
+        const dx = t.x-x, dy = t.y-y;
+        return Math.sqrt(dx*dx+dy*dy) > (t.r + r + 14);
+      });
+      if(ok) return {x,y};
+    }
+    return null;
+  }
+
+  function spawnTarget(){
+    if(!running) return;
+    const elapsed = (Date.now() - startTime) / (GAME_SECONDS*1000);
+    const t = Math.min(1, Math.max(0, elapsed));
+    const lifespan = lerp(LIFESPAN[0], LIFESPAN[1], t);
+    const d = Math.max(58, Math.min(92, fieldSize().w * 0.14));
+
+    const pos = pickPosition(d);
+    if(pos){
+      spawned++;
+      const el = document.createElement('div');
+      el.className = 'target';
+      el.style.setProperty('--d', d+'px');
+      el.style.left = pos.x + 'px';
+      el.style.top = pos.y + 'px';
+
+      const circumference = 2 * Math.PI * ((d*0.42));
+      el.innerHTML = `
+        <svg viewBox="0 0 ${d} ${d}">
+          <circle class="bg" cx="${d/2}" cy="${d/2}" r="${d*0.42}"></circle>
+          <circle class="ring" cx="${d/2}" cy="${d/2}" r="${d*0.42}"
+            stroke-dasharray="${circumference}" stroke-dashoffset="0"></circle>
+        </svg>
+        <div class="face">${SPECIES[Math.floor(Math.random()*SPECIES.length)]}</div>
+      `;
+      field.appendChild(el);
+      const ring = el.querySelector('.ring');
+      ring.style.transition = `stroke-dashoffset ${lifespan}ms linear`;
+      requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ ring.style.strokeDashoffset = circumference; }); });
+
+      const rec = { x: pos.x, y: pos.y, r: d/2, el, done:false };
+      activeTargets.push(rec);
+
+      const urgentAt = lifespan * 0.55;
+      const urgentT = setTimeout(()=>{ if(!rec.done) el.classList.add('urgent'); }, urgentAt);
+
+      const expireT = setTimeout(()=>{
+        if(rec.done) return;
+        rec.done = true;
+        missed++; updateStats();
+        el.classList.add('leaving','missedleave');
+        setTimeout(()=> removeTarget(rec), 340);
+      }, lifespan);
+
+      el.addEventListener('pointerdown', ()=>{
+        if(rec.done) return;
+        rec.done = true;
+        clearTimeout(expireT); clearTimeout(urgentT);
+        rescued++; updateStats();
+        addTrayIcon(el.querySelector('.face').textContent);
+        el.classList.add('leaving');
+        el.style.transform = 'translate(-50%,-50%) scale(1.25)';
+        setTimeout(()=> removeTarget(rec), 320);
+      }, { passive:true });
+    }
+
+    const nextIn = lerp(SPAWN_INTERVAL[0], SPAWN_INTERVAL[1], t);
+    spawnTimer = setTimeout(spawnTarget, nextIn);
+  }
+
+  function removeTarget(rec){
+    activeTargets = activeTargets.filter(t => t !== rec);
+    rec.el.remove();
+  }
+
+  function addTrayIcon(icon){
+    const span = document.createElement('span');
+    span.textContent = icon;
+    trayIcons.appendChild(span);
+    if(trayIcons.children.length > 40) trayIcons.removeChild(trayIcons.firstChild);
+    trayIcons.scrollLeft = trayIcons.scrollWidth;
+  }
+
+  function updateStats(){
+    $('rescueCount').textContent = rescued;
+    $('missCount').textContent = missed;
+  }
+
+  function tick(){
+    const elapsedMs = Date.now() - startTime;
+    const remain = Math.max(0, GAME_SECONDS - elapsedMs/1000);
+    $('clock').textContent = Math.ceil(remain);
+    $('timebar').style.transform = `scaleX(${remain/GAME_SECONDS})`;
+    if(remain <= 0){ endGame(); return; }
+    tickTimer = requestAnimationFrame(tick);
+  }
+
+  function startGame(){
+    rescued = 0; missed = 0; spawned = 0;
+    activeTargets.forEach(t => t.el.remove());
+    activeTargets = [];
+    trayIcons.innerHTML = '';
+    updateStats();
+    $('clock').textContent = GAME_SECONDS;
+    $('timebar').style.transform = 'scaleX(1)';
+    showScreen('play');
+    running = true;
+    startTime = Date.now();
+    spawnTimer = setTimeout(spawnTarget, 300);
+    tickTimer = requestAnimationFrame(tick);
+  }
+
+  function endGame(){
+    running = false;
+    clearTimeout(spawnTimer);
+    cancelAnimationFrame(tickTimer);
+    activeTargets.forEach(t => { t.el.remove(); });
+    activeTargets = [];
+
+    const total = rescued + missed;
+    const pct = total > 0 ? Math.round((rescued/total)*100) : 0;
+
+    $('finalRescue').textContent = rescued;
+    $('finalMiss').textContent = missed;
+    $('finalTotal').textContent = total;
+    $('resultPct').textContent = pct + '%';
+
+    const r = 52, c = 2*Math.PI*r;
+    const ring = $('resultRing');
+    ring.style.strokeDasharray = c;
+    ring.style.strokeDashoffset = c;
+    ring.style.transition = 'none';
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        ring.style.transition = 'stroke-dashoffset 900ms cubic-bezier(.2,.8,.2,1)';
+        ring.style.strokeDashoffset = c - (c*pct/100);
+      });
+    });
+    ring.style.stroke = pct >= 50 ? 'var(--safe)' : 'var(--alert)';
+
+    let title, desc;
+    if(pct >= 80){
+      title = '당신 덕분에 오늘, 많은 생명이 살아남았습니다';
+      desc = '지구생명보고서는 야생동물 개체군이 빠르게 줄고 있다고 말합니다. 오늘 당신의 빠른 손길처럼, 지금 행동하면 아직 늦지 않았습니다.';
+    } else if(pct >= 40){
+      title = '몇몇 생명은 놓쳤지만, 당신의 손길은 컸습니다';
+      desc = '한 번의 손길로 모든 생명을 구할 순 없습니다. 하지만 계속되는 관심과 후원은, 서식지를 잃어가는 생명들에게 다시 시간을 줍니다.';
+    } else {
+      title = '지금 이 순간에도, 생명은 사라지고 있습니다';
+      desc = '짧은 게임 속 30초처럼, 멸종위기종에게 남은 시간도 그리 많지 않습니다. WWF와 함께라면 그 시간을 늘릴 수 있습니다.';
+    }
+    $('resultTitle').textContent = title;
+    $('resultDesc').textContent = desc;
+
+    showScreen('result');
+  }
+
+  $('startBtn').addEventListener('click', startGame);
+  $('retryBtn').addEventListener('click', startGame);
+  $('donateBtn').addEventListener('click', ()=>{
+    alert('실제 운영 시 이 버튼을 WWF 후원 신청 폼/QR 연결 화면으로 연결합니다.');
+  });
+
+  window.addEventListener('resize', ()=>{
+    activeTargets.forEach(t=>{
+      t.x = Math.min(t.x, fieldSize().w - t.r - 6);
+      t.y = Math.min(t.y, fieldSize().h - t.r - 6);
+    });
+  });
+})();
+</script>
+</body>
+</html>
